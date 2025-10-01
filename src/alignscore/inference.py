@@ -33,7 +33,7 @@ class Inferencer():
         self.nlg_eval_mode = None # bin, bin_sp, nli, nli_sp
         self.verbose = verbose
     
-    def inference_example_batch(self, premise: list, hypo: list):
+    def inference_example_batch(self, premise: list, hypo: list, chunk_size: int):
         """
         inference a example,
         premise: list
@@ -45,13 +45,16 @@ class Inferencer():
         self.disable_progress_bar_in_inference = True
         assert len(premise) == len(hypo), "Premise must has the same length with Hypothesis!"
 
-        out_score = []
+        print(f"[alignscore] Using chunk size: {chunk_size}")
+        out_score, out_log = [], []
         for one_pre, one_hypo in tqdm(zip(premise, hypo), desc="Evaluating", total=len(premise), disable=(not self.verbose)):
-            out_score.append(self.inference_per_example(one_pre, one_hypo))
+            pred_output = self.inference_per_example(one_pre, one_hypo, chunk_size)
+            out_score.append(pred_output[0])
+            out_log.append(pred_output[1])
         
-        return None, torch.tensor(out_score), None
+        return None, torch.tensor(out_score), out_log
 
-    def inference_per_example(self, premise:str, hypo: str):
+    def inference_per_example(self, premise:str, hypo: str, chunk_size: int=350):
         """
         inference a example,
         premise: string
@@ -66,7 +69,7 @@ class Inferencer():
         premise_sents = sent_tokenize(premise)
         premise_sents = premise_sents or ['']
 
-        n_chunk = len(premise.strip().split()) // 350 + 1
+        n_chunk = len(premise.strip().split()) // chunk_size + 1
         n_chunk = max(len(premise_sents) // n_chunk, 1)
         premise_sents = [each for each in chunks(premise_sents, n_chunk)]
 
@@ -87,8 +90,9 @@ class Inferencer():
             elif self.nlg_eval_mode == 'reg_sp':
                 output_score = self.inference(premise_sent_mat, hypo_sents_mat)[0] ### use NLI head OR ALIGN head
             
+            output_log = (premise_sents, hypo_sents, output_score.tolist())
             output_score = output_score.view(len(premise_sents), len(hypo_sents)).max(dim=0).values.mean().item() ### sum or mean depends on the task/aspect
-            return output_score
+            return output_score, output_log
 
         
         output_score = self.inference(premise_sent_mat, hypo_sents_mat)[2][:,0] ### use NLI head OR ALIGN head
@@ -281,13 +285,13 @@ class Inferencer():
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
     
-    def nlg_eval(self, premise, hypo):
+    def nlg_eval(self, premise, hypo, chunk_size):
         assert self.nlg_eval_mode is not None, "Select NLG Eval mode!"
         if (self.nlg_eval_mode == 'bin') or (self.nlg_eval_mode == 'nli') or (self.nlg_eval_mode == 'reg'):
             return self.inference(premise, hypo)
         
         elif (self.nlg_eval_mode == 'bin_sp') or (self.nlg_eval_mode == 'nli_sp') or (self.nlg_eval_mode == 'reg_sp'):
-            return self.inference_example_batch(premise, hypo)
+            return self.inference_example_batch(premise, hypo, chunk_size)
         
         else:
             ValueError("Unrecognized NLG Eval mode!")

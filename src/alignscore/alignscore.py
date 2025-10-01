@@ -12,5 +12,6 @@ class AlignScore:
         )
         self.model.nlg_eval_mode = evaluation_mode
 
-    def score(self, contexts: List[str], claims: List[str]) -> List[float]:
-        return self.model.nlg_eval(contexts, claims)[1].tolist()
+    def score(self, contexts: List[str], claims: List[str], chunk_size: int=350) -> List[float]:
+        nlg_eval_out = self.model.nlg_eval(contexts, claims, chunk_size)
+        return nlg_eval_out[1].tolist(), nlg_eval_out[2]

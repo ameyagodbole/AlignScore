@@ -222,7 +222,7 @@ def eval_chatgptshiqichen2023(api_key, chat_model='gpt-3.5-turbo', tasks=['qags_
     chatgpt = ChatGPTShiqiChen2023Scorer(task=tasks, api_key=api_key, chat_model=chat_model)
     evaluator = Evaluator(eval_tasks=tasks, align_func=chatgpt.scorer, is_save_all_tables=IS_SAVE_ALL_TABLES)
     evaluator.result_save_name = f"nlg_eval_fact/baselines/ChatGPTShiqiChen2023-{chat_model}"
-        evaluator.evaluate()
+    evaluator.evaluate()
 
 def run_benchmarks(args, argugment_error):
     os.makedirs('exp_results/baselines', exist_ok=True)
